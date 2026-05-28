@@ -40,7 +40,6 @@ const I18N = {
     labelYourName:       "Your Name",
     placeholderName:     "Enter your name…",
     labelActiveRooms:    "Active Rooms",
-    labelRoomName:       "Room Name",
     labelPasswordOpt:    "Password (Optional)",
     btnJoin:             "🚪 Join Game",
     btnCreate:           "✨ Create Room",
@@ -120,6 +119,8 @@ const I18N = {
     noCluesYet:          "No clues yet — investigation begins soon…",
     votedLabel:          "✅ Voted",
     waitingVotes:        "Waiting for all votes…",
+    perpetratorLabel:    "Perpetrator",
+    innocentLabel:       "Innocent",
   },
   ro: {
     appTitle:            "Duba Misterelor",
@@ -129,20 +130,19 @@ const I18N = {
     labelYourName:       "Numele tău",
     placeholderName:     "Introdu numele…",
     labelActiveRooms:    "Camere Active",
-    labelRoomName:       "Nume Cameră",
     labelPasswordOpt:    "Parolă (Opțional)",
     btnJoin:             "🚪 Intră în joc",
     btnCreate:           "✨ Creează cameră",
     lobbyTitle:          "🛖 Sală de așteptare",
     settingsTitle:       "⚙️ Setări joc",
     labelTheme:          "🎭 Temă",
-    placeholderTheme:    "ex. Crimă victoriană…",
+    placeholderTheme:    "ex. Furtul unui tablou...",
     labelTime:           "⏱️ Timp (min)",
     labelDifficulty:     "🎲 Dificultate",
     diffEasy:            "Ușor",
     diffMedium:          "Mediu",
     diffHard:            "Greu",
-    labelPerps:          "🔪 Criminali",
+    labelPerps:          "🔪 Vinovați",
     labelJester:         "🃏 Nebunul",
     jesterOff:           "❌ Dezactivat",
     jesterOn:            "🟢 Activat",
@@ -178,11 +178,11 @@ const I18N = {
     btnDismiss:          "Închide",
     votingTitle:         "🗳️ Vot orb",
     votingSub:           "Toate indiciile sunt ascunse. Ai încredere doar în memorie.",
-    votingInstruction:   "Cine crezi că este criminalul?",
+    votingInstruction:   "Cine crezi că este vinovatul?",
     btnSubmitVote:       "✅ Trimite vot",
     tallyTitle:          "📊 Numărare voturi…",
     resultTitle:         "🏆 Rezultat",
-    btnBackLobby:        "🚪 Înapoi în sală",
+    btnBackLobby:        "🚪 Înapoi la meniu",
     btnConfirm:          "Confirmă",
     btnCancel:           "Anulează",
     enterPassword:       "Introdu Parola Camerei:",
@@ -200,15 +200,17 @@ const I18N = {
     errorAlreadyPlaying: "Jocul este deja în desfășurare.",
     errorNoJSON:         "Te rugăm să lipești un JSON mai întâi.",
     kickConfirm:         (n) => `Elimini pe ${n} din joc?`,
-    perpetratorWins:     "🔪 Criminalul câștigă!",
-    innocentWins:        "🕵️ Nevinovații câștigă!",
+    perpetratorWins:     "🔪 Vinovatul câștigă!",
+    innocentWins:        "🕵️ Inocenții câștigă!",
     jesterWins:          "🃏 Nebunul câștigă!",
-    tieMessage:          "⚖️ Egalitate — Criminalul câștigă!",
+    tieMessage:          "⚖️ Egalitate — Vinovatul câștigă!",
     adminBadge:          "GAZDĂ",
     sleepIcon:           "💤",
     noCluesYet:          "Niciun indiciu deocamdată — investigația începe în curând…",
     votedLabel:          "✅ A votat",
     waitingVotes:        "Se așteaptă toate voturile…",
+    perpetratorLabel:    "Vinovat",
+    innocentLabel:       "Inocent",
   }
 };
 
@@ -274,6 +276,10 @@ function showScreen(id) {
   document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
   const el = document.getElementById(id);
   if (el) { el.classList.add('active'); el.scrollTop = 0; }
+  
+  // Show language button ONLY on the entry screen
+  const langBtn = document.getElementById('lang-toggle');
+  if (langBtn) langBtn.style.display = (id === 'screen-entry') ? 'block' : 'none';
   
   if (id === 'screen-lobby') {
     AdManager.refresh('ad-lobby-top');
@@ -366,8 +372,10 @@ function listenRooms() {
     for(const [id, data] of Object.entries(rooms)) {
       if(!data.public_data) continue;
       
-      const rName = data.public_data.room_name || id;
       const status = data.public_data.status;
+      if(status === 'resolution') continue; // Hide finished games
+      
+      const rName = data.public_data.room_name || id;
       const hasPass = !!data.public_data.password;
       
       const item = document.createElement('div');
@@ -449,13 +457,18 @@ async function processJoin(roomId, playerName, passwordAttempt) {
 }
 
 /* ── CREATE ROOM ────────────────────────────────────────── */
-async function createRoom(playerName, roomName, password) {
+async function createRoom(playerName, password) {
   await syncServerTime();
   const roomId = genRoomCode();
   
+  // Auto-Name Room based on current count
+  const roomsSnap = await db.ref('rooms').once('value');
+  const count = Object.keys(roomsSnap.val() || {}).length + 1;
+  const roomName = (State.lang === 'ro' ? 'Camera ' : 'Room ') + count;
+  
   await db.ref(`rooms/${roomId}`).set({
     public_data: {
-      status: 'lobby', timer_visible: true, room_name: roomName || roomId, password: password || ''
+      status: 'lobby', timer_visible: true, room_name: roomName, password: password || ''
     },
     admin: playerName, created_at: firebase.database.ServerValue.TIMESTAMP,
   });
@@ -601,7 +614,7 @@ async function executeKick(roomId, targetName) {
   if(!pSnap.exists()) return;
   const pData = pSnap.val();
   
-  if ((pData.role || '').toLowerCase() === 'perpetrator') {
+  if ((pData.role || '').toLowerCase() === 'perpetrator' || (pData.role || '').toLowerCase() === 'vinovat') {
     await db.ref(`rooms/${roomId}/public_data`).update({ status: 'resolution', resolution_type: 'perpetrator_kicked', kicked_player: targetName });
   } else if (pData.hidden_secret) {
     await db.ref(`rooms/${roomId}/public_data/public_clues`).push().set({
@@ -783,7 +796,7 @@ function enterVotingScreen(roomId, playerName) {
   toggleInGameUI(false);
   document.getElementById('side-menu-overlay')?.classList.add('hidden');
 
-  // CRITICAL FIX: The listener that watches for resolution needs to be active here!
+  // Ascultăm trecerea spre rezoluție de către baza de date
   addListener(db.ref(`rooms/${roomId}/public_data/status`), 'value', snap => {
     if (snap.val() === 'resolution') enterResolutionScreen(roomId, playerName);
   });
@@ -829,9 +842,8 @@ async function tallyVotes(roomId, votes, players) {
   setTimeout(async () => {
     let top = []; let mx = 0;
     for(const [n, c] of Object.entries(tally)) { if(c>mx) {mx=c; top=[n];} else if(c===mx) top.push(n); }
-    let res = top.length > 1 ? 'tie_perpetrator_wins' : ((players[top[0]]?.role||'').toLowerCase() === 'perpetrator' ? 'innocent_wins' : ((players[top[0]]?.role||'').toLowerCase() === 'jester' ? 'jester_wins' : 'perpetrator_wins'));
+    let res = top.length > 1 ? 'tie_perpetrator_wins' : ((players[top[0]]?.role||'').toLowerCase() === 'perpetrator' || (players[top[0]]?.role||'').toLowerCase() === 'vinovat' ? 'innocent_wins' : ((players[top[0]]?.role||'').toLowerCase() === 'jester' ? 'jester_wins' : 'perpetrator_wins'));
     
-    // We let all clients trigger this (Firebase safely handles idempotent writes) to ensure it works even if admin drops.
     await db.ref(`rooms/${roomId}/public_data`).update({ status: 'resolution', resolution_type: res, voted_out: top[0] });
     document.getElementById('vote-tally-overlay').classList.add('hidden');
   }, 4000);
@@ -870,7 +882,11 @@ function generatePrompt() {
   
   let pRule = set.priv === 'on' ? '5. Space private clues out evenly. DO NOT trigger them immediately at the start. Create at least one Lie Trap (a private clue sent early, and a public clue later that exposes it if they lied).' : '5. NO private clues. Generate ONLY public investigation_events.';
 
-  const prompt = `You are a master mystery novelist generating a game in ${State.lang === 'ro' ? 'Romanian' : 'English'}.
+  const langName = State.lang === 'ro' 
+    ? 'Romanian. CRITICAL INSTRUCTION: You must think and write directly in native, conversational Romanian. DO NOT generate the story in English and translate it. Use authentic Romanian syntax, slang where appropriate, and natural phrasing.' 
+    : 'English';
+
+  const prompt = `You are a master mystery novelist generating a game in ${langName}.
 Theme: ${set.theme || 'Classic murder'}. Difficulty: ${set.diff}. Total Game Time: ${set.time} minutes.
 Players: [${names.join(', ')}].
 Rules:
@@ -914,9 +930,8 @@ document.addEventListener('DOMContentLoaded', async () => {
   document.getElementById('btn-create-game').onclick = async () => {
     const n = document.getElementById('global-player-name').value.trim();
     if(!n) return showToast(t('errorNoName'));
-    const r = document.getElementById('create-room-name').value.trim();
     const p = document.getElementById('create-room-pass').value.trim();
-    const id = await createRoom(n, r, p);
+    const id = await createRoom(n, p);
     State.roomId = id; State.playerName = n; State.isAdmin = true;
     enterLobby(id, n, true);
   };
@@ -962,7 +977,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     if(snap.val()?.status === 'paused') db.ref(`rooms/${State.roomId}/public_data`).update({ status: 'playing', end_timestamp: nowServer() + snap.val().paused_remaining, paused_remaining: null });
   };
 
-  // Force Vote Logic (Anti-block mechanic)
+  // Force Vote Logic
   document.getElementById('btn-force-vote').onclick = async () => {
     if(State.isAdmin) {
       showModal('Force voting phase now?', () => db.ref(`rooms/${State.roomId}/public_data/status`).set('voting_blind'));
@@ -993,12 +1008,17 @@ document.addEventListener('DOMContentLoaded', async () => {
       const arr = snap.val()||[]; db.ref(`rooms/${State.roomId}/players/${State.playerName}/private_clues`).set(arr.map(c=>({...c, delivered:true})));
     });
   };
+  
+  // Înapoi și ștergere cameră
   document.getElementById('btn-leave-game').onclick = () => {
     localStorage.removeItem('dmRoom'); localStorage.removeItem('dmPlayer');
     db.ref(`rooms/${State.roomId}/players/${State.playerName}`).remove();
     location.reload();
   };
   document.getElementById('btn-back-lobby').onclick = () => {
+    if(State.isAdmin && State.roomId) {
+      db.ref(`rooms/${State.roomId}`).remove();
+    }
     localStorage.removeItem('dmRoom'); localStorage.removeItem('dmPlayer'); location.reload();
   };
 
