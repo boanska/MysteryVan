@@ -17,8 +17,8 @@
 </head>
 <body>
 
-  <!-- LANGUAGE TOGGLE -->
-  <button id="lang-toggle" class="lang-toggle hide-in-game" aria-label="Toggle language">🌐 <span id="lang-label">EN</span></button>
+  <!-- LANGUAGE TOGGLE (Acum vizibil doar pe primul ecran prin JS) -->
+  <button id="lang-toggle" class="lang-toggle" aria-label="Toggle language">🌐 <span id="lang-label">EN</span></button>
 
   <!-- ============================================================ -->
   <!-- SCREEN: ENTRY (Join or Create) -->
@@ -54,10 +54,6 @@
       <!-- CREATE TAB -->
       <div id="tab-panel-create" class="tab-panel">
         <div class="field-group">
-          <label data-i18n="labelRoomName">Room Name</label>
-          <input type="text" id="create-room-name" class="input-field" placeholder="e.g. Camera 1" maxlength="20" autocomplete="off" />
-        </div>
-        <div class="field-group">
           <label data-i18n="labelPasswordOpt">Password (Optional)</label>
           <input type="text" id="create-room-pass" class="input-field" placeholder="Leave empty for public" maxlength="20" autocomplete="off" />
         </div>
@@ -70,7 +66,6 @@
   <!-- SCREEN: LOBBY -->
   <!-- ============================================================ -->
   <div id="screen-lobby" class="screen">
-    <!-- AD PLACEHOLDER -->
     <div class="ad-placeholder ad-lobby-top" id="ad-lobby-top" aria-hidden="true"></div>
 
     <div class="lobby-header">
@@ -144,7 +139,6 @@
       <div id="lobby-player-list" class="player-list"></div>
     </div>
 
-    <!-- AD PLACEHOLDER -->
     <div class="ad-placeholder ad-lobby-bottom" id="ad-lobby-bottom" aria-hidden="true"></div>
   </div>
 
@@ -175,7 +169,7 @@
       </div>
     </div>
 
-    <!-- SIDE MENU (Players & Kick) -->
+    <!-- SIDE MENU -->
     <div id="side-menu-overlay" class="side-menu-overlay hidden">
       <div class="side-menu">
         <div class="side-menu-header">
@@ -195,13 +189,12 @@
       </div>
     </div>
 
-    <!-- PREMISE -->
+    <!-- PREMISE & CHARACTER -->
     <div class="card premise-card">
       <h3 class="section-title" data-i18n="premiseTitle">📜 The Premise</h3>
       <p id="premise-text" class="premise-text">—</p>
     </div>
 
-    <!-- MY CHARACTER SHEET -->
     <div class="card character-card">
       <h3 class="section-title" data-i18n="myCharTitle">🪪 My Character</h3>
       <div class="character-sheet blurred" id="character-sheet">
@@ -274,7 +267,6 @@
   <!-- SCREEN: RESOLUTION -->
   <!-- ============================================================ -->
   <div id="screen-resolution" class="screen">
-    <!-- AD PLACEHOLDER -->
     <div class="ad-placeholder ad-resolution-top" id="ad-resolution-top" aria-hidden="true"></div>
 
     <div class="resolution-header">
@@ -289,7 +281,6 @@
     </div>
     <button id="btn-back-lobby" class="btn btn-primary" data-i18n="btnBackLobby">🚪 Back to Lobby</button>
 
-    <!-- AD PLACEHOLDER -->
     <div class="ad-placeholder ad-resolution-bottom" id="ad-resolution-bottom" aria-hidden="true"></div>
   </div>
 
