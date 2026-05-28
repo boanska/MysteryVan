@@ -1,0 +1,309 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <meta name="theme-color" content="#3d1f0a" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="Duba Misterelor" />
+  <meta name="description" content="The Mystery Van — a cozy multiplayer mystery party game" />
+  <title>Duba Misterelor 🚐</title>
+  <link rel="manifest" href="manifest.json" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@300;400;500;600;700&family=Nunito:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+
+  <!-- ============================================================ -->
+  <!-- LANGUAGE TOGGLE -->
+  <!-- ============================================================ -->
+  <button id="lang-toggle" class="lang-toggle" aria-label="Toggle language">🌐 <span id="lang-label">EN</span></button>
+
+  <!-- ============================================================ -->
+  <!-- SCREEN: ENTRY (Join or Create) -->
+  <!-- ============================================================ -->
+  <div id="screen-entry" class="screen active">
+    <div class="entry-bg-decor"></div>
+    <div class="entry-card card">
+      <div class="logo-area">
+        <span class="logo-emoji">🚐</span>
+        <h1 class="logo-title" data-i18n="appTitle">Duba Misterelor</h1>
+        <p class="logo-sub" data-i18n="appSubtitle">The Mystery Van</p>
+      </div>
+      <div class="tab-bar">
+        <button class="tab-btn active" id="tab-join" data-i18n="tabJoin">Join Game</button>
+        <button class="tab-btn" id="tab-create" data-i18n="tabCreate">Create Game</button>
+      </div>
+      <!-- JOIN TAB -->
+      <div id="tab-panel-join" class="tab-panel active">
+        <div class="field-group">
+          <label data-i18n="labelRoomCode">Room Code</label>
+          <input type="text" id="join-room-code" class="input-field" placeholder="ABC123" maxlength="6" autocomplete="off" autocorrect="off" spellcheck="false" />
+        </div>
+        <div class="field-group">
+          <label data-i18n="labelYourName">Your Name</label>
+          <input type="text" id="join-player-name" class="input-field" data-i18n-placeholder="placeholderName" placeholder="Enter your name…" maxlength="20" autocomplete="off" />
+        </div>
+        <button id="btn-join-game" class="btn btn-primary" data-i18n="btnJoin">🚪 Join Game</button>
+      </div>
+      <!-- CREATE TAB -->
+      <div id="tab-panel-create" class="tab-panel">
+        <div class="field-group">
+          <label data-i18n="labelYourName">Your Name</label>
+          <input type="text" id="create-player-name" class="input-field" data-i18n-placeholder="placeholderName" placeholder="Enter your name…" maxlength="20" autocomplete="off" />
+        </div>
+        <button id="btn-create-game" class="btn btn-primary" data-i18n="btnCreate">✨ Create Room</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============================================================ -->
+  <!-- SCREEN: LOBBY -->
+  <!-- ============================================================ -->
+  <div id="screen-lobby" class="screen">
+
+    <!-- ===== AD PLACEHOLDER — LOBBY TOP ===== -->
+    <div class="ad-placeholder ad-lobby-top" id="ad-lobby-top" aria-hidden="true"></div>
+    <!-- ===== END AD PLACEHOLDER ===== -->
+
+    <div class="lobby-header">
+      <h2 class="screen-title" data-i18n="lobbyTitle">🛖 Lobby</h2>
+      <div class="room-code-badge" id="room-code-display">—</div>
+    </div>
+
+    <!-- HOST SETTINGS (visible only to admin) -->
+    <div id="host-settings" class="card host-settings hidden">
+      <h3 class="section-title" data-i18n="settingsTitle">⚙️ Game Settings</h3>
+      <div class="settings-grid">
+        <div class="field-group">
+          <label data-i18n="labelTheme">🎭 Theme</label>
+          <input type="text" id="setting-theme" class="input-field" data-i18n-placeholder="placeholderTheme" placeholder="e.g. Victorian murder…" />
+        </div>
+        <div class="field-group">
+          <label data-i18n="labelTime">⏱️ Time (min)</label>
+          <input type="number" id="setting-time" class="input-field" value="30" min="5" max="120" />
+        </div>
+        <div class="field-group">
+          <label data-i18n="labelDifficulty">🎲 Difficulty</label>
+          <select id="setting-difficulty" class="input-field select-field">
+            <option value="Easy" data-i18n-opt="diffEasy">Easy</option>
+            <option value="Medium" selected data-i18n-opt="diffMedium">Medium</option>
+            <option value="Hard" data-i18n-opt="diffHard">Hard</option>
+          </select>
+        </div>
+        <div class="field-group">
+          <label data-i18n="labelPerps">🔪 Perpetrators</label>
+          <select id="setting-perps" class="input-field select-field">
+            <option value="1">1</option>
+            <option value="2">2</option>
+            <option value="random">🎲 Random</option>
+          </select>
+        </div>
+        <div class="field-group">
+          <label data-i18n="labelJester">🃏 Jester</label>
+          <select id="setting-jester" class="input-field select-field" disabled>
+            <option value="off" data-i18n-opt="jesterOff">❌ Off</option>
+            <option value="on" data-i18n-opt="jesterOn">🟢 On</option>
+            <option value="random" data-i18n-opt="jesterRandom">🎲 Random</option>
+          </select>
+          <small class="hint" data-i18n="jesterHint">Requires 5+ players</small>
+        </div>
+      </div>
+
+      <!-- JSON PASTE AREA -->
+      <div class="field-group">
+        <label data-i18n="labelPasteJSON">📋 Paste Master JSON</label>
+        <textarea id="json-paste-area" class="input-field textarea-json" rows="4" data-i18n-placeholder="placeholderJSON" placeholder="Paste AI-generated JSON here…"></textarea>
+      </div>
+      <div class="btn-row">
+        <button id="btn-gen-prompt" class="btn btn-secondary" data-i18n="btnGenPrompt">✨ Copy AI Prompt</button>
+        <button id="btn-load-json" class="btn btn-accent" data-i18n="btnLoadJSON">📋 Load JSON</button>
+      </div>
+      <div id="json-status" class="status-msg hidden"></div>
+
+      <div class="btn-row">
+        <button id="btn-start-game" class="btn btn-primary" disabled data-i18n="btnStartGame">🚀 Start Game</button>
+        <button id="btn-toggle-timer-vis" class="btn btn-secondary" data-i18n="btnShowTimer">👁️ Timer Visible</button>
+      </div>
+    </div>
+
+    <!-- PLAYER LIST -->
+    <div class="card player-list-card">
+      <h3 class="section-title" data-i18n="playersTitle">👥 Players</h3>
+      <div id="player-list" class="player-list"></div>
+    </div>
+
+    <!-- ===== AD PLACEHOLDER — LOBBY BOTTOM ===== -->
+    <div class="ad-placeholder ad-lobby-bottom" id="ad-lobby-bottom" aria-hidden="true"></div>
+    <!-- ===== END AD PLACEHOLDER ===== -->
+  </div>
+
+  <!-- ============================================================ -->
+  <!-- SCREEN: PLAYING -->
+  <!-- ============================================================ -->
+  <div id="screen-playing" class="screen">
+
+    <!-- TOP BAR -->
+    <div class="play-topbar">
+      <div class="timer-display" id="timer-display">
+        <span class="timer-icon">⏱️</span>
+        <span id="timer-value">--:--</span>
+      </div>
+      <div class="room-pill" id="room-pill">—</div>
+      <div class="admin-controls" id="admin-play-controls">
+        <button id="btn-pause" class="icon-btn" title="Pause" data-i18n-title="btnPause">⏸️</button>
+        <button id="btn-rush" class="icon-btn" title="Rush Clue" data-i18n-title="btnRush">🔎</button>
+        <button id="btn-force-vote" class="icon-btn" title="Force Vote" data-i18n-title="btnForceVote">🗳️</button>
+      </div>
+    </div>
+
+    <!-- PAUSE OVERLAY -->
+    <div id="pause-overlay" class="pause-overlay hidden">
+      <div class="pause-content">
+        <div class="pause-icon">⏸️</div>
+        <p data-i18n="gameIsPaused">Game is Paused</p>
+        <button id="btn-resume" class="btn btn-primary" data-i18n="btnResume">▶️ Resume</button>
+      </div>
+    </div>
+
+    <!-- PREMISE -->
+    <div class="card premise-card" id="premise-card">
+      <h3 class="section-title" data-i18n="premiseTitle">📜 The Premise</h3>
+      <p id="premise-text" class="premise-text">—</p>
+    </div>
+
+    <!-- MY CHARACTER SHEET -->
+    <div class="card character-card" id="my-character-card">
+      <h3 class="section-title" data-i18n="myCharTitle">🪪 My Character</h3>
+      <div class="character-sheet blurred" id="character-sheet">
+        <div class="cs-row">
+          <span class="cs-label" data-i18n="csRole">Role</span>
+          <span class="cs-value" id="cs-role">—</span>
+        </div>
+        <div class="cs-row">
+          <span class="cs-label" data-i18n="csMotive">Motive</span>
+          <span class="cs-value" id="cs-motive">—</span>
+        </div>
+        <div class="cs-row">
+          <span class="cs-label" data-i18n="csSecret">Hidden Secret</span>
+          <span class="cs-value" id="cs-secret">—</span>
+        </div>
+        <div class="cs-row" id="cs-accomplices-row" style="display:none">
+          <span class="cs-label" data-i18n="csAccomplices">Accomplices</span>
+          <span class="cs-value" id="cs-accomplices">—</span>
+        </div>
+        <div class="cs-row" id="cs-shared-row" style="display:none">
+          <span class="cs-label" data-i18n="csShared">Shared Secret</span>
+          <span class="cs-value" id="cs-shared">—</span>
+        </div>
+      </div>
+      <button class="btn btn-reveal hold-reveal" id="btn-hold-reveal" data-i18n="btnHoldReveal">👁️ Hold to Reveal</button>
+    </div>
+
+    <!-- PUBLIC CLUE FEED -->
+    <div class="card clue-card">
+      <h3 class="section-title" data-i18n="clueFeedTitle">🔍 Investigation Feed</h3>
+      <div id="clue-feed" class="clue-feed"></div>
+    </div>
+
+    <!-- PRIVATE CLUE NOTIFICATION -->
+    <div id="private-clue-toast" class="private-toast hidden">
+      <div class="toast-inner">
+        <span class="toast-icon">🔒</span>
+        <span class="toast-msg" id="toast-msg" data-i18n="privateClueReceived">You received a private clue!</span>
+        <div class="private-clue-content blurred" id="private-clue-content"></div>
+        <button class="btn btn-reveal hold-reveal" id="btn-hold-reveal-private" data-i18n="btnHoldReveal">👁️ Hold to Reveal</button>
+        <button class="btn btn-secondary" id="btn-dismiss-toast" data-i18n="btnDismiss">Dismiss</button>
+      </div>
+    </div>
+
+    <!-- PLAYERS SIDEBAR -->
+    <div class="card players-mini-card">
+      <h3 class="section-title" data-i18n="playersTitle">👥 Players</h3>
+      <div id="players-mini-list" class="players-mini-list"></div>
+    </div>
+
+  </div>
+
+  <!-- ============================================================ -->
+  <!-- SCREEN: BLIND VOTING -->
+  <!-- ============================================================ -->
+  <div id="screen-voting" class="screen">
+    <div class="voting-header">
+      <h2 class="screen-title" data-i18n="votingTitle">🗳️ Blind Vote</h2>
+      <p class="voting-sub" data-i18n="votingSub">All clues are hidden. Trust only your memory.</p>
+    </div>
+    <div class="card voting-card">
+      <p class="voting-instruction" data-i18n="votingInstruction">Who do you think is the Perpetrator?</p>
+      <div id="voting-player-list" class="voting-player-list"></div>
+      <button id="btn-submit-vote" class="btn btn-primary" disabled data-i18n="btnSubmitVote">✅ Submit Vote</button>
+      <div id="vote-status" class="status-msg hidden"></div>
+    </div>
+    <div id="vote-tally-overlay" class="vote-tally-overlay hidden">
+      <div class="tally-inner">
+        <h3 data-i18n="tallyTitle">📊 Counting Votes…</h3>
+        <div id="tally-bars" class="tally-bars"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============================================================ -->
+  <!-- SCREEN: RESOLUTION -->
+  <!-- ============================================================ -->
+  <div id="screen-resolution" class="screen">
+
+    <!-- ===== AD PLACEHOLDER — RESOLUTION TOP ===== -->
+    <div class="ad-placeholder ad-resolution-top" id="ad-resolution-top" aria-hidden="true"></div>
+    <!-- ===== END AD PLACEHOLDER ===== -->
+
+    <div class="resolution-header">
+      <h2 class="screen-title resolution-title" id="resolution-headline">🎉 Resolution</h2>
+    </div>
+    <div class="card resolution-card">
+      <p id="resolution-text" class="resolution-text">—</p>
+    </div>
+    <div class="card result-card" id="result-card">
+      <h3 class="section-title" data-i18n="resultTitle">🏆 Outcome</h3>
+      <div id="result-content" class="result-content"></div>
+    </div>
+    <button id="btn-back-lobby" class="btn btn-primary" data-i18n="btnBackLobby">🚪 Back to Lobby</button>
+
+    <!-- ===== AD PLACEHOLDER — RESOLUTION BOTTOM ===== -->
+    <div class="ad-placeholder ad-resolution-bottom" id="ad-resolution-bottom" aria-hidden="true"></div>
+    <!-- ===== END AD PLACEHOLDER ===== -->
+  </div>
+
+  <!-- ============================================================ -->
+  <!-- GLOBAL TOAST / MODAL -->
+  <!-- ============================================================ -->
+  <div id="global-toast" class="global-toast hidden"></div>
+
+  <div id="modal-overlay" class="modal-overlay hidden">
+    <div class="modal-box card">
+      <p id="modal-msg"></p>
+      <div class="btn-row">
+        <button id="modal-confirm" class="btn btn-primary" data-i18n="btnConfirm">Confirm</button>
+        <button id="modal-cancel" class="btn btn-secondary" data-i18n="btnCancel">Cancel</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============================================================ -->
+  <!-- FIREBASE SDK -->
+  <!-- ============================================================ -->
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+  <script src="app.js"></script>
+  <script>
+    // Service Worker Registration
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('./sw.js').catch(() => null);
+      });
+    }
+  </script>
+</body>
+</html>
