@@ -17,8 +17,12 @@
 </head>
 <body>
 
+  <!-- LANGUAGE TOGGLE -->
   <button id="lang-toggle" class="lang-toggle hide-in-game" aria-label="Toggle language">🌐 <span id="lang-label">EN</span></button>
 
+  <!-- ============================================================ -->
+  <!-- SCREEN: ENTRY (Join or Create) -->
+  <!-- ============================================================ -->
   <div id="screen-entry" class="screen active">
     <div class="entry-bg-decor"></div>
     <div class="entry-card card">
@@ -28,6 +32,7 @@
         <p class="logo-sub" data-i18n="appSubtitle">The Mystery Van</p>
       </div>
 
+      <!-- PLAYER NAME (Global for both join/create) -->
       <div class="field-group" style="margin-bottom: 20px;">
         <label data-i18n="labelYourName">Your Name</label>
         <input type="text" id="global-player-name" class="input-field" data-i18n-placeholder="placeholderName" placeholder="Enter your name…" maxlength="20" autocomplete="off" />
@@ -38,12 +43,15 @@
         <button class="tab-btn" id="tab-create" data-i18n="tabCreate">Create Game</button>
       </div>
 
+      <!-- JOIN TAB (Room Browser) -->
       <div id="tab-panel-join" class="tab-panel active">
         <label data-i18n="labelActiveRooms">Active Rooms</label>
         <div id="room-browser-list" class="room-browser-list">
-          </div>
+          <!-- Rooms injected here -->
+        </div>
       </div>
 
+      <!-- CREATE TAB -->
       <div id="tab-panel-create" class="tab-panel">
         <div class="field-group">
           <label data-i18n="labelRoomName">Room Name</label>
@@ -58,7 +66,11 @@
     </div>
   </div>
 
+  <!-- ============================================================ -->
+  <!-- SCREEN: LOBBY -->
+  <!-- ============================================================ -->
   <div id="screen-lobby" class="screen">
+    <!-- AD PLACEHOLDER -->
     <div class="ad-placeholder ad-lobby-top" id="ad-lobby-top" aria-hidden="true"></div>
 
     <div class="lobby-header">
@@ -66,6 +78,7 @@
       <div class="room-code-badge hide-in-game" id="room-code-display">—</div>
     </div>
 
+    <!-- HOST SETTINGS -->
     <div id="host-settings" class="card host-settings hidden">
       <h3 class="section-title" data-i18n="settingsTitle">⚙️ Game Settings</h3>
       <div class="settings-grid">
@@ -131,9 +144,13 @@
       <div id="lobby-player-list" class="player-list"></div>
     </div>
 
+    <!-- AD PLACEHOLDER -->
     <div class="ad-placeholder ad-lobby-bottom" id="ad-lobby-bottom" aria-hidden="true"></div>
   </div>
 
+  <!-- ============================================================ -->
+  <!-- SCREEN: PLAYING -->
+  <!-- ============================================================ -->
   <div id="screen-playing" class="screen">
     
     <div class="play-topbar">
@@ -149,6 +166,7 @@
       </div>
     </div>
 
+    <!-- PAUSE OVERLAY -->
     <div id="pause-overlay" class="pause-overlay hidden">
       <div class="pause-content">
         <div class="pause-icon">⏸️</div>
@@ -157,6 +175,7 @@
       </div>
     </div>
 
+    <!-- SIDE MENU (Players & Kick) -->
     <div id="side-menu-overlay" class="side-menu-overlay hidden">
       <div class="side-menu">
         <div class="side-menu-header">
@@ -164,8 +183,8 @@
           <button id="btn-close-menu" class="icon-btn">❌</button>
         </div>
         
-        <div class="admin-only hidden" style="margin-bottom: 15px; display: flex; gap: 8px;">
-          <button id="btn-pause" class="btn btn-secondary" style="flex:1" data-i18n="btnPause">⏸️ Pause</button>
+        <div style="margin-bottom: 15px; display: flex; gap: 8px;">
+          <button id="btn-pause" class="btn btn-secondary admin-only hidden" style="flex:1" data-i18n="btnPause">⏸️ Pause</button>
           <button id="btn-force-vote" class="btn btn-accent" style="flex:1" data-i18n="btnForceVote">🗳️ Vote</button>
         </div>
 
@@ -176,11 +195,13 @@
       </div>
     </div>
 
+    <!-- PREMISE -->
     <div class="card premise-card">
       <h3 class="section-title" data-i18n="premiseTitle">📜 The Premise</h3>
       <p id="premise-text" class="premise-text">—</p>
     </div>
 
+    <!-- MY CHARACTER SHEET -->
     <div class="card character-card">
       <h3 class="section-title" data-i18n="myCharTitle">🪪 My Character</h3>
       <div class="character-sheet blurred" id="character-sheet">
@@ -208,11 +229,13 @@
       <button class="btn btn-reveal" id="btn-toggle-reveal" data-i18n="btnShowDetails">👁️ Show Details</button>
     </div>
 
+    <!-- PUBLIC CLUE FEED -->
     <div class="card clue-card">
       <h3 class="section-title" data-i18n="clueFeedTitle">🔍 Investigation</h3>
       <div id="clue-feed" class="clue-feed"></div>
     </div>
 
+    <!-- PRIVATE CLUE TOAST -->
     <div id="private-clue-toast" class="private-toast hidden">
       <div class="toast-inner">
         <span class="toast-icon">🔒</span>
@@ -225,6 +248,9 @@
 
   </div>
 
+  <!-- ============================================================ -->
+  <!-- SCREEN: BLIND VOTING -->
+  <!-- ============================================================ -->
   <div id="screen-voting" class="screen">
     <div class="voting-header">
       <h2 class="screen-title" data-i18n="votingTitle">🗳️ Blind Vote</h2>
@@ -244,7 +270,11 @@
     </div>
   </div>
 
+  <!-- ============================================================ -->
+  <!-- SCREEN: RESOLUTION -->
+  <!-- ============================================================ -->
   <div id="screen-resolution" class="screen">
+    <!-- AD PLACEHOLDER -->
     <div class="ad-placeholder ad-resolution-top" id="ad-resolution-top" aria-hidden="true"></div>
 
     <div class="resolution-header">
@@ -259,9 +289,11 @@
     </div>
     <button id="btn-back-lobby" class="btn btn-primary" data-i18n="btnBackLobby">🚪 Back to Lobby</button>
 
+    <!-- AD PLACEHOLDER -->
     <div class="ad-placeholder ad-resolution-bottom" id="ad-resolution-bottom" aria-hidden="true"></div>
   </div>
 
+  <!-- MODALS & TOASTS -->
   <div id="global-toast" class="global-toast hidden"></div>
   
   <div id="password-modal" class="modal-overlay hidden">
@@ -285,6 +317,7 @@
     </div>
   </div>
 
+  <!-- FIREBASE SDK -->
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
   <script src="app.js"></script>
