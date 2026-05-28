@@ -3,7 +3,7 @@
    Strategy: Cache-first for static assets, network-first for Firebase
    ============================================================ */
 
-const CACHE_VERSION = 'duba-v1';
+const CACHE_VERSION = 'duba-v3';
 const STATIC_CACHE  = `${CACHE_VERSION}-static`;
 
 const STATIC_ASSETS = [
@@ -41,18 +41,14 @@ self.addEventListener('activate', event => {
 
 self.addEventListener('fetch', event => {
   const url = event.request.url;
-
-  // Bypass Firebase & CDN requests (always network)
   if (
     url.includes('firebaseio.com') ||
     url.includes('googleapis.com/firebase') ||
     url.includes('gstatic.com/firebasejs') ||
     url.includes('firebaseapp.com')
   ) {
-    return; // Let it fall through to network
+    return; 
   }
-
-  // Cache-first for static assets
   event.respondWith(
     caches.match(event.request).then(cached => {
       if (cached) return cached;
