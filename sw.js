@@ -3,7 +3,7 @@
    Strategy: Cache-first for static assets, network-first for Firebase
    ============================================================ */
 
-const CACHE_VERSION = 'duba-v3';
+const CACHE_VERSION = 'duba-v4';
 const STATIC_CACHE  = `${CACHE_VERSION}-static`;
 
 const STATIC_ASSETS = [
