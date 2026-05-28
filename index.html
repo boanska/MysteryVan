@@ -17,7 +17,7 @@
 </head>
 <body>
 
-  <!-- LANGUAGE TOGGLE (Acum vizibil doar pe primul ecran prin JS) -->
+  <!-- LANGUAGE TOGGLE -->
   <button id="lang-toggle" class="lang-toggle" aria-label="Toggle language">🌐 <span id="lang-label">EN</span></button>
 
   <!-- ============================================================ -->
@@ -32,7 +32,6 @@
         <p class="logo-sub" data-i18n="appSubtitle">The Mystery Van</p>
       </div>
 
-      <!-- PLAYER NAME (Global for both join/create) -->
       <div class="field-group" style="margin-bottom: 20px;">
         <label data-i18n="labelYourName">Your Name</label>
         <input type="text" id="global-player-name" class="input-field" data-i18n-placeholder="placeholderName" placeholder="Enter your name…" maxlength="20" autocomplete="off" />
@@ -43,7 +42,7 @@
         <button class="tab-btn" id="tab-create" data-i18n="tabCreate">Create Game</button>
       </div>
 
-      <!-- JOIN TAB (Room Browser) -->
+      <!-- JOIN TAB -->
       <div id="tab-panel-join" class="tab-panel active">
         <label data-i18n="labelActiveRooms">Active Rooms</label>
         <div id="room-browser-list" class="room-browser-list">
@@ -55,9 +54,9 @@
       <div id="tab-panel-create" class="tab-panel">
         <div class="field-group">
           <label data-i18n="labelPasswordOpt">Password (Optional)</label>
-          <input type="text" id="create-room-pass" class="input-field" placeholder="Leave empty for public" maxlength="20" autocomplete="off" />
+          <input type="text" id="create-room-pass" class="input-field" data-i18n-placeholder="leaveEmpty" placeholder="Leave empty for public" maxlength="20" autocomplete="off" />
         </div>
-        <button id="btn-create-game" class="btn btn-primary" data-i18n="btnCreate">✨ Create Room</button>
+        <button id="btn-create-game" class="btn btn-primary" data-i18n="btnCreate" style="margin-top:10px;">✨ Create Room</button>
       </div>
     </div>
   </div>
@@ -70,12 +69,15 @@
 
     <div class="lobby-header">
       <h2 class="screen-title" data-i18n="lobbyTitle">🛖 Lobby</h2>
-      <div class="room-code-badge hide-in-game" id="room-code-display">—</div>
     </div>
 
     <!-- HOST SETTINGS -->
     <div id="host-settings" class="card host-settings hidden">
-      <h3 class="section-title" data-i18n="settingsTitle">⚙️ Game Settings</h3>
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 12px; position:relative; z-index:1;">
+        <h3 class="section-title" style="margin:0;" data-i18n="settingsTitle">⚙️ Game Settings</h3>
+        <button id="btn-toggle-timer-vis" class="btn btn-secondary" style="padding: 6px 12px; font-size: 0.9rem;">Timer: 👁️</button>
+      </div>
+      
       <div class="settings-grid">
         <div class="field-group">
           <label data-i18n="labelTheme">🎭 Theme</label>
@@ -97,8 +99,8 @@
           <label data-i18n="labelPerps">🔪 Perpetrators</label>
           <select id="setting-perps" class="input-field select-field">
             <option value="1">1</option>
-            <option value="2">2</option>
-            <option value="random">🎲 Random</option>
+            <option value="2" disabled>2</option>
+            <option value="random" disabled data-i18n-opt="jesterRandom">🎲 Random</option>
           </select>
         </div>
         <div class="field-group">
@@ -112,26 +114,24 @@
         <div class="field-group">
           <label data-i18n="labelPrivClues">🔒 Private Clues</label>
           <select id="setting-private-clues" class="input-field select-field">
+            <option value="off" data-i18n-opt="off" selected>❌ Off</option>
             <option value="on" data-i18n-opt="on">🟢 On</option>
-            <option value="off" data-i18n-opt="off">❌ Off</option>
           </select>
         </div>
       </div>
 
-      <div class="field-group">
+      <!-- MASTER BUTTON ROW -->
+      <div class="btn-row" style="margin-top: 16px;">
+        <button id="btn-master-action" class="btn btn-secondary" style="width:100%; font-size:1.1rem; padding: 14px;">1. ✨ Copy AI Prompt</button>
+      </div>
+      
+      <!-- PASTE AREA (Hidden until step 2) -->
+      <div id="paste-container" class="field-group" style="display:none; margin-top: 16px;">
         <label data-i18n="labelPasteJSON">📋 Paste Master JSON</label>
         <textarea id="json-paste-area" class="input-field textarea-json" rows="4" data-i18n-placeholder="placeholderJSON" placeholder="Paste AI-generated JSON here…"></textarea>
       </div>
-      <div class="btn-row">
-        <button id="btn-gen-prompt" class="btn btn-secondary" data-i18n="btnGenPrompt">✨ Copy AI Prompt</button>
-        <button id="btn-load-json" class="btn btn-accent" data-i18n="btnLoadJSON">📋 Load JSON</button>
-      </div>
-      <div id="json-status" class="status-msg hidden"></div>
 
-      <div class="btn-row">
-        <button id="btn-start-game" class="btn btn-primary" disabled data-i18n="btnStartGame">🚀 Start Game</button>
-        <button id="btn-toggle-timer-vis" class="btn btn-secondary" data-i18n="btnShowTimer">👁️ Timer Visible</button>
-      </div>
+      <div id="json-status" class="status-msg hidden"></div>
     </div>
 
     <div class="card player-list-card">
@@ -152,9 +152,8 @@
         <span class="timer-icon">⏱️</span>
         <span id="timer-value">--:--</span>
       </div>
-      <div class="room-pill hide-in-game" id="room-pill">—</div>
       
-      <div class="controls-row" style="display: flex; gap: 8px;">
+      <div class="controls-row" style="display: flex; gap: 8px; margin-left:auto;">
         <button id="btn-rush" class="icon-btn" title="Rush Clue" data-i18n-title="btnRush">🔎</button>
         <button id="btn-open-menu" class="icon-btn" title="Menu">👤</button>
       </div>
