@@ -509,9 +509,13 @@ function splitJSON(raw, settings) {
 
 /* ── LOBBY SCREEN ───────────────────────────────────────── */
 function enterLobby(roomId, playerName, isAdmin) {
+  State.roomId    = roomId;
+  State.playerName = playerName;
+  State.isAdmin   = isAdmin;
+
   localStorage.setItem('dmRoom', roomId);
   localStorage.setItem('dmPlayer', playerName);
-  
+
   document.getElementById('room-code-display').textContent = roomId;
   document.getElementById('room-pill').textContent = roomId;
   document.getElementById('host-settings')?.classList.toggle('hidden', !isAdmin);
@@ -779,6 +783,11 @@ function enterVotingScreen(roomId, playerName) {
   toggleInGameUI(false);
   document.getElementById('side-menu-overlay')?.classList.add('hidden');
 
+  // CRITICAL FIX: The listener that watches for resolution needs to be active here!
+  addListener(db.ref(`rooms/${roomId}/public_data/status`), 'value', snap => {
+    if (snap.val() === 'resolution') enterResolutionScreen(roomId, playerName);
+  });
+
   db.ref(`rooms/${roomId}/players`).once('value').then(snap => {
     const list = document.getElementById('voting-player-list');
     list.innerHTML = '';
@@ -822,6 +831,7 @@ async function tallyVotes(roomId, votes, players) {
     for(const [n, c] of Object.entries(tally)) { if(c>mx) {mx=c; top=[n];} else if(c===mx) top.push(n); }
     let res = top.length > 1 ? 'tie_perpetrator_wins' : ((players[top[0]]?.role||'').toLowerCase() === 'perpetrator' ? 'innocent_wins' : ((players[top[0]]?.role||'').toLowerCase() === 'jester' ? 'jester_wins' : 'perpetrator_wins'));
     
+    // We let all clients trigger this (Firebase safely handles idempotent writes) to ensure it works even if admin drops.
     await db.ref(`rooms/${roomId}/public_data`).update({ status: 'resolution', resolution_type: res, voted_out: top[0] });
     document.getElementById('vote-tally-overlay').classList.add('hidden');
   }, 4000);
@@ -951,7 +961,28 @@ document.addEventListener('DOMContentLoaded', async () => {
     const snap = await db.ref(`rooms/${State.roomId}/public_data`).once('value');
     if(snap.val()?.status === 'paused') db.ref(`rooms/${State.roomId}/public_data`).update({ status: 'playing', end_timestamp: nowServer() + snap.val().paused_remaining, paused_remaining: null });
   };
-  document.getElementById('btn-force-vote').onclick = () => showModal('Force voting phase now?', () => db.ref(`rooms/${State.roomId}/public_data/status`).set('voting_blind'));
+
+  // Force Vote Logic (Anti-block mechanic)
+  document.getElementById('btn-force-vote').onclick = async () => {
+    if(State.isAdmin) {
+      showModal('Force voting phase now?', () => db.ref(`rooms/${State.roomId}/public_data/status`).set('voting_blind'));
+    } else {
+      await db.ref(`rooms/${State.roomId}/force_votes/${State.playerName}`).set(true);
+      const vSnap = await db.ref(`rooms/${State.roomId}/force_votes`).once('value');
+      const pSnap = await db.ref(`rooms/${State.roomId}/players`).once('value');
+      const vCount = Object.keys(vSnap.val() || {}).length;
+      const pCount = Object.keys(pSnap.val() || {}).length;
+      const req = Math.floor(pCount / 2) + 1;
+      
+      if (vCount >= req) {
+        db.ref(`rooms/${State.roomId}/public_data/status`).set('voting_blind');
+      } else {
+        const msg = State.lang === 'ro' ? 'Votat pentru a forța votul' : 'Voted to force voting phase';
+        showToast(`${msg} (${vCount}/${req})`);
+      }
+    }
+  };
+
   document.getElementById('btn-submit-vote').onclick = () => {
     db.ref(`rooms/${State.roomId}/votes/${State.playerName}`).set(State.myVote);
     document.getElementById('btn-submit-vote').disabled = true; document.getElementById('btn-submit-vote').textContent = t('votedLabel');
