@@ -63,6 +63,8 @@ const I18N = {
     off:                 "❌ Off",
     labelPasteJSON:      "📋 Paste Master JSON",
     placeholderJSON:     "Paste AI-generated JSON here…",
+    labelQuickPlay:      "⚡ Quick Match (No AI)",
+    btnQuickPlay:        "▶️ Play Scenario",
     btnMaster1:          "1. ✨ Copy AI Prompt",
     btnMaster2:          "2. 📋 Validate JSON",
     btnMaster3:          "3. 🚀 Start Game",
@@ -108,6 +110,7 @@ const I18N = {
     errorRoomNotFound:   "Room not found.",
     errorAlreadyPlaying: "Game already in progress.",
     errorNoJSON:         "Please paste a JSON first.",
+    errorNotEnoughPlayers: "Not enough players for this scenario.",
     kickConfirm:         (n) => `Kick ${n} from the game?`,
     perpetratorWins:     "🔪 The Perpetrator Wins!",
     innocentWins:        "🕵️ The Innocents Win!",
@@ -152,6 +155,8 @@ const I18N = {
     off:                 "❌ Dezactivat",
     labelPasteJSON:      "📋 Lipește JSON Master",
     placeholderJSON:     "Lipește JSON-ul generat de AI…",
+    labelQuickPlay:      "⚡ Meci Rapid (Fără AI)",
+    btnQuickPlay:        "▶️ Joacă Scenariul",
     btnMaster1:          "1. ✨ Copiază Prompt AI",
     btnMaster2:          "2. 📋 Validează JSON",
     btnMaster3:          "3. 🚀 Pornește Jocul",
@@ -197,6 +202,7 @@ const I18N = {
     errorRoomNotFound:   "Camera nu a fost găsită.",
     errorAlreadyPlaying: "Jocul este deja în desfășurare.",
     errorNoJSON:         "Te rugăm să lipești un JSON mai întâi.",
+    errorNotEnoughPlayers: "Jucători insuficienți pentru acest scenariu.",
     kickConfirm:         (n) => `Elimini pe ${n} din joc?`,
     perpetratorWins:     "🔪 Vinovatul câștigă!",
     innocentWins:        "🕵️ Inocenții câștigă!",
@@ -218,7 +224,7 @@ const State = {
   roomId:        null,
   playerName:    null,
   isAdmin:       false,
-  adminStep:     1,      // 1: Prompt, 2: Paste, 3: Start
+  adminStep:     1,
   gameData:      null,
   timerVisible:  true,
   listeners:     [],
@@ -280,12 +286,8 @@ function showScreen(id) {
   const langBtn = document.getElementById('lang-toggle');
   if (langBtn) langBtn.style.display = (id === 'screen-entry') ? 'block' : 'none';
   
-  if (id === 'screen-lobby') {
-    AdManager.refresh('ad-lobby-top'); AdManager.refresh('ad-lobby-bottom');
-  }
-  if (id === 'screen-resolution') {
-    AdManager.refresh('ad-resolution-top'); AdManager.refresh('ad-resolution-bottom');
-  }
+  if (id === 'screen-lobby') { AdManager.refresh('ad-lobby-top'); AdManager.refresh('ad-lobby-bottom'); }
+  if (id === 'screen-resolution') { AdManager.refresh('ad-resolution-top'); AdManager.refresh('ad-resolution-bottom'); }
 }
 
 let toastTimer = null;
@@ -335,25 +337,30 @@ async function syncServerTime() {
   });
 }
 
-/* ── ROOM BROWSER ───────────────────────────────────────── */
+/* ── ROOM BROWSER (Optimized Directory) ─────────────────── */
 function listenRooms() {
-  db.ref('rooms').on('value', snap => {
+  // Listen only to the lightweight directory to save huge data bandwidth
+  db.ref('room_directory').on('value', snap => {
     if(State.roomId) return; 
     const list = document.getElementById('room-browser-list');
     if(!list) return; list.innerHTML = '';
     
     let activeCount = 0;
+    const now = Date.now();
+
     for(const [id, data] of Object.entries(snap.val() || {})) {
-      if(!data.public_data) continue;
-      const status = data.public_data.status;
-      if(status === 'resolution') continue; 
-      
-      const rName = data.public_data.room_name || id;
-      const hasPass = !!data.public_data.password;
+      // Auto-cleanup dead rooms (older than 6 hours)
+      if(now - data.created_at > 6 * 60 * 60 * 1000) {
+         db.ref(`room_directory/${id}`).remove();
+         db.ref(`rooms/${id}`).remove();
+         continue;
+      }
+
+      if(data.status === 'resolution') continue; 
       
       const item = document.createElement('div'); item.className = 'room-item';
-      item.innerHTML = `<span class="room-item-name">${hasPass ? '🔒 ' : ''}${rName}</span><span class="room-item-status">${status === 'lobby' ? t('lobbyTitle') : (status === 'playing' ? 'In Game' : status)}</span>`;
-      item.addEventListener('click', () => attemptJoinRoom(id, hasPass));
+      item.innerHTML = `<span class="room-item-name">${data.has_password ? '🔒 ' : ''}${data.room_name}</span><span class="room-item-status">${data.status === 'lobby' ? t('lobbyTitle') : 'In Game'}</span>`;
+      item.addEventListener('click', () => attemptJoinRoom(id, data.has_password));
       list.appendChild(item);
       activeCount++;
     }
@@ -381,10 +388,12 @@ async function attemptJoinRoom(roomId, hasPass) {
 async function processJoin(roomId, playerName, passwordAttempt) {
   try {
     await syncServerTime();
-    const publicSnap = await db.ref(`rooms/${roomId}/public_data`).once('value');
-    if (!publicSnap.exists()) throw new Error(t('errorRoomNotFound'));
+    const dirSnap = await db.ref(`room_directory/${roomId}`).once('value');
+    if (!dirSnap.exists()) throw new Error(t('errorRoomNotFound'));
     
+    const publicSnap = await db.ref(`rooms/${roomId}/public_data`).once('value');
     const publicData = publicSnap.val();
+    
     if (publicData.password && publicData.password !== passwordAttempt) throw new Error(t('errorWrongPass'));
     if (publicData.status !== 'lobby') {
       const playerSnap = await db.ref(`rooms/${roomId}/players/${playerName}`).once('value');
@@ -404,12 +413,18 @@ async function processJoin(roomId, playerName, passwordAttempt) {
 async function createRoom(playerName, password) {
   await syncServerTime();
   const roomId = genRoomCode();
-  const count = Object.keys((await db.ref('rooms').once('value')).val() || {}).length + 1;
+  const count = Object.keys((await db.ref('room_directory').once('value')).val() || {}).length + 1;
   const roomName = (State.lang === 'ro' ? 'Camera ' : 'Room ') + count;
   
+  // Create Main Data
   await db.ref(`rooms/${roomId}`).set({
     public_data: { status: 'lobby', timer_visible: true, room_name: roomName, password: password || '' },
     admin: playerName, created_at: firebase.database.ServerValue.TIMESTAMP,
+  });
+
+  // Create Lightweight Directory Entry
+  await db.ref(`room_directory/${roomId}`).set({
+    room_name: roomName, status: 'lobby', has_password: !!password, created_at: firebase.database.ServerValue.TIMESTAMP
   });
 
   await db.ref(`rooms/${roomId}/players/${playerName}`).set({ is_online: true, joined_at: firebase.database.ServerValue.TIMESTAMP });
@@ -451,6 +466,86 @@ function splitJSON(raw, settings) {
   return { publicData, playerMap, publicEvents };
 }
 
+/* ── QUICK MATCH (SCENARIOS) ────────────────────────────── */
+function initScenariosDropdown() {
+  const select = document.getElementById('quick-scenario-select');
+  if(!select || typeof ScenariosBank === 'undefined') return;
+  ScenariosBank.forEach(s => {
+    const opt = document.createElement('option');
+    opt.value = s.id; opt.textContent = s.title;
+    select.appendChild(opt);
+  });
+}
+
+async function startQuickMatch() {
+  if(typeof ScenariosBank === 'undefined') return;
+  const sId = document.getElementById('quick-scenario-select').value;
+  const scenario = ScenariosBank.find(s => s.id === sId);
+  if(!scenario) return;
+
+  const playersSnap = await db.ref(`rooms/${State.roomId}/players`).once('value');
+  const realPlayers = Object.keys(playersSnap.val() || {});
+  
+  if (realPlayers.length < scenario.min_players) {
+    showToast(t('errorNotEnoughPlayers') + ` (${realPlayers.length}/${scenario.min_players})`);
+    return;
+  }
+
+  const shuffledPlayers = realPlayers.sort(() => 0.5 - Math.random());
+  const nameMapping = {};
+  shuffledPlayers.forEach((name, i) => nameMapping[`[P${i + 1}]`] = name);
+
+  const injectNames = (text) => {
+    let res = text;
+    for (const [ph, rn] of Object.entries(nameMapping)) res = res.replaceAll(ph, rn);
+    return res;
+  };
+
+  const playerMap = {};
+  scenario.players_template.forEach(temp => {
+    const rn = nameMapping[temp.placeholder];
+    if (rn) {
+      playerMap[rn] = {
+        role: temp.role, motive: injectNames(temp.motive), hidden_secret: injectNames(temp.hidden_secret),
+        accomplices: temp.accomplices.map(acc => nameMapping[acc] || acc),
+        private_clues: [], is_online: true, joined_at: firebase.database.ServerValue.TIMESTAMP
+      };
+    }
+  });
+
+  const publicEvents = scenario.investigation_events.filter(ev => ev.type !== 'private').map(ev => ({
+    trigger_at_remaining_minutes: ev.trigger_at_remaining_minutes, content: injectNames(ev.content), delivered: false,
+    event_id: `pub_${ev.trigger_at_remaining_minutes}_${Math.random().toString(36).slice(2, 6)}`,
+  }));
+
+  scenario.investigation_events.forEach(ev => {
+    if (ev.type === 'private' && ev.targeted_player) {
+      const rn = nameMapping[ev.targeted_player];
+      if(rn && playerMap[rn]) {
+        playerMap[rn].private_clues.push({
+          trigger_at_remaining_minutes: ev.trigger_at_remaining_minutes, content: injectNames(ev.content),
+          delivered: false, event_id: `priv_${ev.trigger_at_remaining_minutes}_${ev.targeted_player}`,
+        });
+      }
+    }
+  });
+
+  const updates = {};
+  updates[`rooms/${State.roomId}/public_data`] = {
+    initial_premise: injectNames(scenario.game_data.initial_premise), final_resolution: injectNames(scenario.game_data.final_resolution),
+    timer_visible: State.timerVisible, theme: scenario.theme, time_minutes: scenario.timeMinutes, difficulty: scenario.difficulty || "Mediu",
+    status: 'playing', end_timestamp: nowServer() + (scenario.timeMinutes * 60000), started_at: firebase.database.ServerValue.TIMESTAMP,
+    public_events: publicEvents
+  };
+  
+  for(const [n, d] of Object.entries(playerMap)) {
+    ['role','motive','hidden_secret','accomplices','private_clues'].forEach(k => updates[`rooms/${State.roomId}/players/${n}/${k}`] = d[k]);
+  }
+  
+  updates[`room_directory/${State.roomId}/status`] = 'playing';
+  await db.ref().update(updates);
+}
+
 /* ── LOBBY SCREEN & ADMIN BUTTON ────────────────────────── */
 function updateAdminButton() {
   const btn = document.getElementById('btn-master-action');
@@ -471,8 +566,8 @@ function enterLobby(roomId, playerName, isAdmin) {
   localStorage.setItem('dmRoom', roomId); localStorage.setItem('dmPlayer', playerName);
   document.getElementById('host-settings')?.classList.toggle('hidden', !isAdmin);
   
-  if(isAdmin) { State.adminStep = 1; updateAdminButton(); }
-  showScreen('screen-lobby'); listenLobby(roomId, playerName, isAdmin);
+  if(isAdmin) { State.adminStep = 1; updateAdminButton(); initScenariosDropdown(); }
+  toggleInGameUI(false); showScreen('screen-lobby'); listenLobby(roomId, playerName, isAdmin);
 }
 
 function listenLobby(roomId, playerName, isAdmin) {
@@ -483,12 +578,9 @@ function listenLobby(roomId, playerName, isAdmin) {
     const count = Object.keys(players).length;
     if(document.getElementById('setting-jester')) document.getElementById('setting-jester').disabled = count < 5;
     
-    // Perps logic
     const perpSel = document.getElementById('setting-perps');
     if (perpSel) {
-      Array.from(perpSel.options).forEach(opt => {
-        if (opt.value === '2' || opt.value === 'random') opt.disabled = count < 4;
-      });
+      Array.from(perpSel.options).forEach(opt => { if (opt.value === '2' || opt.value === 'random') opt.disabled = count < 4; });
       if (count < 4 && (perpSel.value === '2' || perpSel.value === 'random')) perpSel.value = '1';
     }
   });
@@ -524,22 +616,12 @@ function renderLobbyPlayers(players, myName, isAdmin, roomId) {
   }
 }
 
-async function castKickVote(roomId, myName, targetName) {
-  if (State.isAdmin) { executeKick(roomId, targetName); } 
-  else {
-    await db.ref(`rooms/${roomId}/kick_votes/${targetName}/${myName}`).set(true);
-    const vCount = Object.keys((await db.ref(`rooms/${roomId}/kick_votes/${targetName}`).once('value')).val() || {}).length;
-    const pCount = Object.keys((await db.ref(`rooms/${roomId}/players`).once('value')).val() || {}).length;
-    if (vCount >= Math.floor(pCount / 2) + 1) executeKick(roomId, targetName);
-    else showToast(`Voted to kick ${targetName} (${vCount}/${Math.floor(pCount/2)+1})`);
-  }
-}
-
 async function executeKick(roomId, targetName) {
   const pSnap = await db.ref(`rooms/${roomId}/players/${targetName}`).once('value');
   if(!pSnap.exists()) return;
   if ((pSnap.val().role || '').toLowerCase() === 'perpetrator' || (pSnap.val().role || '').toLowerCase() === 'vinovat') {
     await db.ref(`rooms/${roomId}/public_data`).update({ status: 'resolution', resolution_type: 'perpetrator_kicked', kicked_player: targetName });
+    await db.ref(`room_directory/${roomId}/status`).set('resolution');
   } else if (pSnap.val().hidden_secret) {
     await db.ref(`rooms/${roomId}/public_data/public_clues`).push().set({ content: `💀 ${targetName} was removed. Their secret: "${pSnap.val().hidden_secret}"`, ts: firebase.database.ServerValue.TIMESTAMP });
   }
@@ -603,7 +685,10 @@ function enterPlayingScreen(roomId, playerName, isAdmin) {
       if (pd.status === 'playing') {
         const rem = pd.end_timestamp - nowServer();
         updateTimerUI(rem, pd.timer_visible !== false);
-        if (rem <= 0 && isAdmin) db.ref(`rooms/${roomId}/public_data/status`).set('voting_blind');
+        if (rem <= 0 && isAdmin) {
+           db.ref(`rooms/${roomId}/public_data/status`).set('voting_blind');
+           db.ref(`room_directory/${roomId}/status`).set('voting_blind');
+        }
       }
     });
   }, 1000);
@@ -631,11 +716,22 @@ function renderMenuPlayers(players, myName, roomId) {
     row.innerHTML = `<span class="player-name-label"><span class="player-status-dot${data.is_online === false ? ' offline' : ''}"></span> ${name}</span>`;
     if(name !== myName) {
       const kick = document.createElement('button'); kick.className = 'btn-kick'; kick.textContent = '🚪';
-      kick.onclick = () => showModal(t('kickConfirm', name), () => castKickVote(roomId, myName, name));
+      kick.onclick = () => showModal(t('kickConfirm', name), () => {
+         if (State.isAdmin) executeKick(roomId, name);
+         else castKickVote(roomId, myName, name);
+      });
       row.appendChild(kick);
     }
     list.appendChild(row);
   }
+}
+
+async function castKickVote(roomId, myName, targetName) {
+    await db.ref(`rooms/${roomId}/kick_votes/${targetName}/${myName}`).set(true);
+    const vCount = Object.keys((await db.ref(`rooms/${roomId}/kick_votes/${targetName}`).once('value')).val() || {}).length;
+    const pCount = Object.keys((await db.ref(`rooms/${roomId}/players`).once('value')).val() || {}).length;
+    if (vCount >= Math.floor(pCount / 2) + 1) executeKick(roomId, targetName);
+    else showToast(`Voted to kick ${targetName} (${vCount}/${Math.floor(pCount/2)+1})`);
 }
 
 /* ── CLUE DELIVERY ──────────────────────────────────────── */
@@ -693,7 +789,7 @@ function enterVotingScreen(roomId, playerName) {
     for(const name of Object.keys(snap.val()||{})) {
       if(name === playerName) continue;
       const opt = document.createElement('div'); opt.className = 'vote-option';
-      opt.innerHTML = `<div class="vote-radio"></div><span>${name}</span>`;
+      opt.innerHTML = `<div class="vote-radio"></div><span class="paper-text">${name}</span>`;
       opt.onclick = () => {
         document.querySelectorAll('.vote-option').forEach(o=>o.classList.remove('selected'));
         opt.classList.add('selected'); State.myVote = name; document.getElementById('btn-submit-vote').disabled = false;
@@ -723,7 +819,9 @@ async function tallyVotes(roomId, votes, players) {
     let top = []; let mx = 0;
     for(const [n, c] of Object.entries(tally)) { if(c>mx) {mx=c; top=[n];} else if(c===mx) top.push(n); }
     let res = top.length > 1 ? 'tie_perpetrator_wins' : ((players[top[0]]?.role||'').toLowerCase() === 'perpetrator' || (players[top[0]]?.role||'').toLowerCase() === 'vinovat' ? 'innocent_wins' : ((players[top[0]]?.role||'').toLowerCase() === 'jester' ? 'jester_wins' : 'perpetrator_wins'));
+    
     await db.ref(`rooms/${roomId}/public_data`).update({ status: 'resolution', resolution_type: res, voted_out: top[0] });
+    await db.ref(`room_directory/${roomId}/status`).set('resolution');
     document.getElementById('vote-tally-overlay').classList.add('hidden');
   }, 4000);
 }
@@ -742,7 +840,7 @@ async function enterResolutionScreen(roomId, playerName) {
   const resC = document.getElementById('result-content'); resC.innerHTML = '';
   for(const [n, d] of Object.entries(pl)) {
     const role = (d.role||'innocent').toLowerCase();
-    resC.innerHTML += `<div class="result-row"><span style="font-weight:700">${n}</span> <span class="result-role-badge ${role}">${d.role}</span> <span style="font-size:0.8rem; margin-left:auto">${d.hidden_secret||''}</span></div>`;
+    resC.innerHTML += `<div class="result-row"><span class="paper-text" style="font-weight:700">${n}</span> <span class="result-role-badge ${role}">${d.role}</span> <span class="paper-text" style="font-size:14px; line-height: 28px; margin-left:auto; text-align:right;">${d.hidden_secret||''}</span></div>`;
   }
 }
 
@@ -812,6 +910,9 @@ document.addEventListener('DOMContentLoaded', async () => {
     enterLobby(id, n, true);
   };
 
+  /* ── ADMIN QUICK PLAY ── */
+  document.getElementById('btn-quick-play').onclick = startQuickMatch;
+
   /* ── ADMIN MASTER BUTTON LOGIC ── */
   document.getElementById('btn-master-action').onclick = async () => {
     if (State.adminStep === 1) {
@@ -838,6 +939,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       }
     } else if (State.adminStep === 3) {
       db.ref(`rooms/${State.roomId}/public_data`).update({ status: 'playing', end_timestamp: nowServer() + (document.getElementById('setting-time').value * 60000), started_at: firebase.database.ServerValue.TIMESTAMP });
+      db.ref(`room_directory/${State.roomId}/status`).set('playing');
     }
   };
 
@@ -867,7 +969,10 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   document.getElementById('btn-force-vote').onclick = async () => {
     if(State.isAdmin) {
-      showModal('Force voting phase now?', () => db.ref(`rooms/${State.roomId}/public_data/status`).set('voting_blind'));
+      showModal('Force voting phase now?', () => {
+         db.ref(`rooms/${State.roomId}/public_data/status`).set('voting_blind');
+         db.ref(`room_directory/${State.roomId}/status`).set('voting_blind');
+      });
     } else {
       await db.ref(`rooms/${State.roomId}/force_votes/${State.playerName}`).set(true);
       const vSnap = await db.ref(`rooms/${State.roomId}/force_votes`).once('value');
@@ -876,7 +981,10 @@ document.addEventListener('DOMContentLoaded', async () => {
       const pCount = Object.keys(pSnap.val() || {}).length;
       const req = Math.floor(pCount / 2) + 1;
       
-      if (vCount >= req) db.ref(`rooms/${State.roomId}/public_data/status`).set('voting_blind');
+      if (vCount >= req) {
+         db.ref(`rooms/${State.roomId}/public_data/status`).set('voting_blind');
+         db.ref(`room_directory/${State.roomId}/status`).set('voting_blind');
+      }
       else showToast(`${State.lang === 'ro' ? 'Votat pentru a forța votul' : 'Voted to force voting phase'} (${vCount}/${req})`);
     }
   };
@@ -892,14 +1000,17 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
   };
   
-  // Înapoi și ștergere automată a camerei la final
+  // Înapoi și ștergere cameră
   document.getElementById('btn-leave-game').onclick = () => {
     localStorage.removeItem('dmRoom'); localStorage.removeItem('dmPlayer');
     db.ref(`rooms/${State.roomId}/players/${State.playerName}`).remove();
     location.reload();
   };
   document.getElementById('btn-back-lobby').onclick = () => {
-    if(State.isAdmin && State.roomId) db.ref(`rooms/${State.roomId}`).remove();
+    if(State.isAdmin && State.roomId) {
+      db.ref(`rooms/${State.roomId}`).remove();
+      db.ref(`room_directory/${State.roomId}`).remove();
+    }
     localStorage.removeItem('dmRoom'); localStorage.removeItem('dmPlayer'); location.reload();
   };
 
